@@ -118,3 +118,74 @@ class BankSystem:
     def show_all_accounts(self):
         for acc in self.account:
             acc.get_account_summary()
+
+
+from banking_system import CustomerData, BankAccount, SavingsAccount, FixedDeposit
+
+bank_system = BankSystem
+accounts = {}
+
+def main_menu():
+    print("\n ====== BANKING SYSTEM MENU =====")
+    print("1. Create New Account")
+    print("2. Deposit Funds")
+    print("3. Withdraw Funds")
+    print("4. Use Overdraft (savings Only)")
+    print("5. View Account Summary")
+    print("6. View Transaction History")
+    print("7. Exit")
+
+def get_account():
+    try:
+        customer_id = int(input("Enter customer ID: "))
+        account = accounts.get(customer_id)
+        if not account:
+            print("Account not found.")
+        return account
+    except ValueError as e:
+        print(f"Invalid ID format.")
+        return None
+    
+def create_acount():
+    name = input("Enter full names: ")
+    try:
+        customer_id = int(input("Enter customer ID: "))
+        base_salary = float(input("Opening Base Salary: "))
+        balance = float(input("Opening Balance: "))
+        acc_type = input("Enter Account Type (Savings/Fixed Deposit): ").strip().lower()
+
+        data = CustomerData(name, customer_id, base_salary, balance, acc_type)
+
+        if acc_type == "savings":
+            account = SavingsAccount
+        elif acc_type == "Fixed deposit":
+            account = FixedDeposit
+        else:
+            print("Invalid account type")
+            return
+        
+        bank_system.add_account(account)
+        accounts[customer_id] = account
+
+        print("Account created succesfully")
+
+    except ValueError as e:
+        print(f"Invalid input. Please use number for salary, ID and base salary: {e}")
+
+def deposit_fund():
+    account = get_account()
+    if account:
+        try:
+            amount = float(input("Enter amount to deposit: "))
+            account.deposit(amount)
+        except ValueError as e:
+            print("Please enter a valid amount.")
+
+def withdraw_amount():
+    account = get_account()
+    if account:
+        try:
+            amount = float(input("Enter amount to withdraw: "))
+            account.withdraw(amount)
+        except ValueError as e:
+            print("Amount entered invalid.")
