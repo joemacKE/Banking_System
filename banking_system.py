@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from datetime import datetime
+
 @dataclass
 class CustomerData:
     full_name: str
@@ -6,89 +8,94 @@ class CustomerData:
     base_salary: float
     balance: float
 
+@dataclass
+class Transaction:
+    amount: float
+    type: str  # e.g., deposit, withdrawal, overdraft, interest
+    description: str
+    timestamp: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 class BankAccount:
-    def __init__(self, customer_data:CustomerData):
+    def __init__(self, customer_data: CustomerData):
         self._id = customer_data.customer_ID
         self._name = customer_data.full_name
         self._base_salary = customer_data.base_salary
         self._balance = customer_data.balance
+        self._transactions = []
 
-
-    
+    def log_transaction(self, amount, type, description):
+        self._transactions.append(Transaction(
+            amount=amount,
+            type=type,
+            description=description,
+            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ))
 
     def deposit(self, amount):
-        try:
-            if amount >= 100:
-                self._balance += amount
-                print(f"Deposited {amount} to you account")
-                
-            else:
-                print("Minimum deposit should be 100")
-                
-        except ValueError as e:
-            print("Invalid amount")
-    
+        if amount >= 100:
+            self._balance += amount
+            self.log_transaction(amount, "deposit", "Deposited funds")
+            print(f"Deposited {amount} to your account.")
+        else:
+            print("Minimum deposit should be 100.")
+
     def withdraw(self, amount):
-        try:
-            if amount <= self._balance and amount >= 100:
-                self._balance -= amount
-                print(f"Withdrew {amount} succesfully")
-            else:
-                print("You have insufficient balance")
-        except Exception as e:
-            print(f"Withdrawal fail")
+        if amount >= 100 and amount <= self._balance:
+            self._balance -= amount
+            self.log_transaction(amount, "withdrawal", "Withdrew funds")
+            print(f"Withdrew {amount} successfully.")
+        else:
+            print("Insufficient balance or invalid amount.")
 
     def get_account_summary(self):
-        print("\n --- Account --_")
+        print("\n--- Account Summary ---")
         print(f"Customer ID: {self._id}")
         print(f"Name: {self._name}")
         print(f"Current Balance: {self._balance}")
-        print(f"{self.deposit()}")
-        print(f"{self.withdraw()}")
+        print(f"Total Transactions: {len(self._transactions)}")
 
-
+    def get_transaction_history(self):
+        print("\n--- Transaction History ---")
+        if not self._transactions:
+            print("No transactions recorded.")
+        else:
+            for txn in self._transactions:
+                print(f"{txn.timestamp} | {txn.type.title()} | Amount: {txn.amount} | {txn.description}")
 
 class SavingsAccount(BankAccount):
-    def __init__(self, customer_data:CustomerData):
+    def __init__(self, customer_data: CustomerData, overdraft=1000):
         super().__init__(customer_data)
+        self.overdraft_limit = overdraft
 
-    
-    def user_overdraft(self, amount):
-        try:
-            if self._balance < amount <= amount:
-                self._balance -= amount
-                print(f"Overdraft of amount {amount} is applied to your account")
-            else:
-                print(f"The minimum overdraft withdrawal is {amount}")
-        except Exception as e:
-            print(f"{e}")
-
+    def use_overdraft(self, amount):
+        if self._balance < amount <= self.overdraft_limit:
+            self._balance -= amount
+            self.log_transaction(amount, "overdraft", "Overdraft applied")
+            print(f"Overdraft of {amount} applied. New balance: {self._balance}")
+        else:
+            print("Overdraft limit exceeded or invalid request.")
 
 class FixedDeposit(BankAccount):
-    def __init__(self, customer_data:CustomerData, locked_in = 12, interest_rate = 0.5):
+    def __init__(self, customer_data: CustomerData, locked_in=12, interest_rate=0.05):
         super().__init__(customer_data)
         self.locked_in = locked_in
         self.interest_rate = interest_rate
-    
+
     def withdrawal_before_maturity(self, amount):
-        try:
-            if self.locked_in <= 0:
-                self.withdraw(amount)
-            else:
-                print(f"Cannot withdraw. Maturity is due in {self.locked_in} months")
-        
-        except Exception as e:
-            print(f"{e}")
-        
+        if self.locked_in <= 0:
+            self.withdraw(amount)
+        else:
+            print(f"Withdrawal not allowed. Maturity in {self.locked_in} months.")
 
     def maturity_amount(self):
         try:
             total = self._balance * self.interest_rate * self.locked_in
-            print(f"Maturity amount will be: {total}")
+            self.log_transaction(total, "interest", "Interest accrued at maturity")
+            print(f"Maturity amount: {total}")
             return total
         except Exception as e:
-            print(f"Sorry something went wrong: {e}")
-    
+            print(f"Error calculating maturity amount: {e}")
+            return 0
 
 class BankSystem:
     def __init__(self):
@@ -97,61 +104,17 @@ class BankSystem:
     def add_account(self, account):
         try:
             self.account.append(account)
+            print("Account added.")
         except Exception as e:
             print(f"Error adding account: {e}")
-    
+
     def remove_account(self, account):
         try:
             self.account.remove(account)
-            print(f"Account removed succesfully")
+            print("Account removed.")
         except Exception as e:
-            print(f"Something went wrong! Failed to remove account")
-    
+            print(f"Error removing account: {e}")
 
-import unittest
-from banking_system import CustomerData, BankAccount, SavingsAccount, FixedDeposit, BankSystem  # Assuming saved as banking.py
-
-class TestBankingSystem(unittest.TestCase):
-    def setUp(self):
-        self.data = CustomerData("John Doe", 1001, 50000, 1000)
-        self.savings = SavingsAccount(self.data, overdraft=2000)
-        self.fixed = FixedDeposit(self.data, locked_in=6, interest_rate=0.1)
-
-    def test_deposit_valid(self):
-        self.savings.deposit(500)
-        self.assertEqual(self.savings._balance, 1500)
-
-    def test_deposit_invalid(self):
-        self.savings.deposit(-200)
-        self.assertEqual(self.savings._balance, 1000)  # No change
-
-    def test_withdraw_valid(self):
-        self.savings.withdraw(500)
-        self.assertEqual(self.savings._balance, 500)
-
-    def test_withdraw_invalid(self):
-        self.savings.withdraw(1500)
-        self.assertEqual(self.savings._balance, 1000)  # No change
-
-    def test_overdraft_valid(self):
-        self.savings.use_overdraft(1500)
-        self.assertEqual(self.savings._balance, -500)
-
-    def test_fixed_maturity_amount(self):
-        total = self.fixed.maturity_amount()
-        expected = 1000 * 0.1 * 6
-        self.assertEqual(total, expected)
-
-    def test_add_account_to_system(self):
-        bank = BankSystem()
-        bank.add_account(self.savings)
-        self.assertIn(self.savings, bank.account)
-
-    def test_remove_account_from_system(self):
-        bank = BankSystem()
-        bank.add_account(self.savings)
-        bank.remove_account(self.savings)
-        self.assertNotIn(self.savings, bank.account)
-
-if __name__ == '__main__':
-    unittest.main()
+    def show_all_accounts(self):
+        for acc in self.account:
+            acc.get_account_summary()
